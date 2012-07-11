@@ -1,40 +1,75 @@
 <?
-
 ini_set('display_errors', '1');
-$fh = fopen('log', 'w');
-
-$files = $_FILES;
-$f = null;
-foreach ($files as $key => $file) {
-  move_uploaded_file($file['tmp_name'], './pdfs/' . $file['name']);
-  $f = $file;
-  break;
-}
-
-$file_content = file_get_contents('./pdfs/'.$f['name']);
-$pub_content = file_get_contents('./public_key');
 
 $json = json_decode($_POST['json']);
 
-$verify = openssl_verify($file_content, base64_decode($json->signature), $pub_content);
-unset($json->signature);
-if ($verify === 1) {
-  $json->result = 'SUCCESS';
-} elseif ($verify === 0) {
-  $json->result = 'INCORRECT';
-} elseif ($verify === -1) {
-  $json->result = 'ERROR';
+if (isset($json->func) && $json->func == 'set_public_key') {
+  save_public_key();
 } else {
-  $json->result = 'UNKNOWN';
+  parse_pdf();
 }
 
-fwrite($fh, print_r($json, true));
-fwrite($fh, 'verify result: ' . "'" . $verify . "'");
+function save_public_key() {
+  foreach ($_FILES as $key => $file) {
+    move_uploaded_file($file['tmp_name'], './public_key');
+    break;
+  }
 
-header('Content-type: application/json');
-echo json_encode($json);
+  $ret = new stdClass();
+  $ret->message = 'public key saved';
+  header('Content-type: application/json');
+  echo json_encode($ret);
+}
 
-fclose($fh);
+function parse_pdf() {
+  global $json;
+
+  header('Content-type: application/json');
+
+  $pdf_folder = './pdfs/';
+  $parsed_folder = './parsed_docs/';
+
+  if (!is_dir($pdf_folder)) {
+    mkdir($pdf_folder);
+  }
+
+  if (!is_dir($parsed_folder)) {
+    mkdir($parsed_folder);
+  }
+  
+  $fh = fopen('log', 'w');
+  
+  $files = $_FILES;
+  $f = null;
+  foreach ($files as $key => $file) {
+    move_uploaded_file($file['tmp_name'], $pdf_folder . $file['name']);
+    $f = $file;
+    break;
+  }
+  
+  $file_content = file_get_contents($pdf_folder . $f['name']);
+  $pub_content = file_get_contents('./public_key');
+
+  $verify = @openssl_verify($file_content, base64_decode($json->signature), $pub_content);
+  unset($json->signature);
+  if ($verify === 1) {
+    $json->result = 'SUCCESS';
+  } elseif ($verify === 0) {
+    $json->result = 'INCORRECT PUBLIC KEY (please upload your public key again under settings menu)';
+  } elseif ($verify === -1) {
+    $json->result = 'ERROR';
+  } else {
+    $json->result = 'UNKNOWN ERROR (please upload your public key again under settings menu)';
+  }
+
+  
+  fwrite($fh, print_r($json, true));
+  fwrite($fh, 'verify result: ' . "'" . $verify . "'");
+  
+  echo json_encode($json);
+  
+  fclose($fh);
+}
 
 function do_post_answer($json, $filename, $filepath) {
   $data = "";
