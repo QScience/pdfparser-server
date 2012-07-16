@@ -1,4 +1,4 @@
-<?
+<?php
 ini_set('display_errors', '1');
 
 $json = json_decode($_POST['json']);
@@ -10,13 +10,14 @@ if (isset($json->func) && $json->func == 'set_public_key') {
 }
 
 function save_public_key() {
+  $success = FALSE;
   foreach ($_FILES as $key => $file) {
-    move_uploaded_file($file['tmp_name'], './public_key');
+    $success = move_uploaded_file($file['tmp_name'], './public_key');
     break;
   }
 
   $ret = new stdClass();
-  $ret->message = 'public key saved';
+  $ret->result = $success === TRUE ? 0 : 1;
   header('Content-type: application/json');
   echo json_encode($ret);
 }
@@ -53,13 +54,13 @@ function parse_pdf() {
   $verify = @openssl_verify($file_content, base64_decode($json->signature), $pub_content);
   unset($json->signature);
   if ($verify === 1) {
-    $json->result = 'SUCCESS';
+    $json->result = 0;
   } elseif ($verify === 0) {
-    $json->result = 'INCORRECT PUBLIC KEY (please upload your public key again under settings menu)';
+    $json->result = 1;
   } elseif ($verify === -1) {
-    $json->result = 'ERROR';
+    $json->result = 2;
   } else {
-    $json->result = 'UNKNOWN ERROR (please upload your public key again under settings menu)';
+    $json->result = 3;
   }
 
   
