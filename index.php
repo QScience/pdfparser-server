@@ -38,8 +38,6 @@ function parse_pdf() {
     mkdir($parsed_folder);
   }
   
-  $fh = fopen('log', 'w');
-  
   $files = $_FILES;
   $f = null;
   foreach ($files as $key => $file) {
@@ -55,6 +53,8 @@ function parse_pdf() {
   unset($json->signature);
   if ($verify === 1) {
     $json->result = 0;
+    $json->xml_content = run_java_parser($pdf_folder . $f['name']);
+    $json->xml_name = $f['name'];
   } elseif ($verify === 0) {
     $json->result = 1;
   } elseif ($verify === -1) {
@@ -62,17 +62,19 @@ function parse_pdf() {
   } else {
     $json->result = 3;
   }
-
-  
-  fwrite($fh, print_r($json, true));
-  fwrite($fh, 'verify result: ' . "'" . $verify . "'");
   
   echo json_encode($json);
+}
+
+function run_java_parser($pdf_path) {
+  // TODO: call java to parse pdf
   
-  fclose($fh);
+  return base64_encode(file_get_contents('./parsed_docs/sfi_0412039.txt.out'));
+  
 }
 
 function do_post_answer($json, $filename, $filepath) {
+  $f = fopen('log', 'w');
   $data = "";
   $boundary = "----------------" . substr(md5(rand(0, 32000)), 0, 10);
   // POSTing JSON data
@@ -88,23 +90,29 @@ function do_post_answer($json, $filename, $filepath) {
   $data .= "Content-Disposition: form-data; name=\"{$filename}\"; filename=\"{$filename}\"\n";
   $data .= "Content-Type: text/plain\n\n";
 
-  $data .= $file_contents . "\n";
+  $data .= "imitating base 64 coded data" . "\n";
+  
   $data .= "--$boundary--\n";
   // compiling the post request
 
   $wrapper = "Content-Type: multipart/form-data; boundary=" . $boundary . "\n";
-  $wrapper = "";
+  $wrapper .= $data;
 
-  $ctx = stream_context_create($params);
-  $fp = fopen($url, 'rb', FALSE, $ctx);
-  if (!$fp) {
-    throw new Exception("Problem with $url, $php_errormsg");
-  }
+  fwrite($f, $wrapper);
+  fclose($f);
+
+  echo $wrapper;
+
+  //$ctx = stream_context_create($params);
+  //$fp = fopen($url, 'rb', FALSE, $ctx);
+  //if (!$fp) {
+  //  throw new Exception("Problem with $url, $php_errormsg");
+ // }
   //$response = @stream_get_contents($fp);
   //if ($response === FALSE) {
   //  throw new Exception("Problem reading data from $url, $php_errormsg");
   //}
-  return $response;
+ // return $response;
 }
 
 ?>
