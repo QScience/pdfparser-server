@@ -54,7 +54,7 @@ function parse_pdf() {
   if ($verify === 1) {
     $json->result = 0;
     $json->xml_content = run_java_parser($pdf_folder . $f['name']);
-    $json->xml_name = $f['name'];
+    $json->xml_name = $f['name'].'.out.txt';
   } elseif ($verify === 0) {
     $json->result = 1;
   } elseif ($verify === -1) {
