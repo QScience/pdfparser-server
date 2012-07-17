@@ -19,6 +19,7 @@ function save_public_key() {
   $ret = new stdClass();
   $ret->result = $success === TRUE ? 0 : 1;
   header('Content-type: application/json');
+  //sleep(35);
   echo json_encode($ret);
 }
 
