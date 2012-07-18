@@ -5,14 +5,18 @@ $json = json_decode($_POST['json']);
 
 if (isset($json->func) && $json->func == 'set_public_key') {
   save_public_key();
-} else {
+}
+elseif (!empty($_FILES)) {
   parse_pdf();
+}
+else {
+  echo 'Empty request.';
 }
 
 function save_public_key() {
   $success = FALSE;
   foreach ($_FILES as $key => $file) {
-    $success = move_uploaded_file($file['tmp_name'], './public_key');
+    $success = @move_uploaded_file($file['tmp_name'], './public_key');
     break;
   }
 
