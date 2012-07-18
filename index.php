@@ -73,8 +73,13 @@ function parse_pdf() {
 
 function run_java_parser($pdf_path) {
   // TODO: call java to parse pdf
-  
-  return base64_encode(file_get_contents('./parsed_docs/sfi_0412039.txt.out'));
+  $ll = exec('ls -l', $retval);
+
+  $l = fopen('log', 'a');
+  fwrite($l, print_r($retval, true) . "\n\n". $ll ."\n\n");
+  fclose($l);
+
+  return base64_encode(debug_get_random_parsed_data());
   
 }
 
@@ -108,16 +113,22 @@ function do_post_answer($json, $filename, $filepath) {
 
   echo $wrapper;
 
-  //$ctx = stream_context_create($params);
-  //$fp = fopen($url, 'rb', FALSE, $ctx);
-  //if (!$fp) {
-  //  throw new Exception("Problem with $url, $php_errormsg");
- // }
-  //$response = @stream_get_contents($fp);
-  //if ($response === FALSE) {
-  //  throw new Exception("Problem reading data from $url, $php_errormsg");
-  //}
- // return $response;
 }
+
+function debug_get_random_parsed_data() {
+  $files = array();
+  if ($dh = opendir('./parsed_docs/')) {
+    while (($file = readdir($dh)) !== false) {
+      if (is_file('./parsed_docs/' . $file)) {
+        $files[] = $file;
+      }
+    }
+    closedir($dh);
+  }
+  $rand = rand(0, count($files) - 1);
+  return file_get_contents('./parsed_docs/' . $files[$rand]);
+
+}
+
 
 ?>
