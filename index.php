@@ -94,7 +94,11 @@ function parse_pdf() {
     unset($json->signature);
     if ($verify === 1) {
       $json->result = 0;
-      $json->xml_content = run_java_parser($pdf_folder . $f['name']);
+      $start = microtime(TRUE);
+      $data = run_java_parser($pdf_folder . $f['name']);
+      $json->ellapse = microtime(TRUE) - $start;
+      $json->xml_citations = $data->citations;
+      $json->xml_header = $data->header;
       $json->xml_name = $f['name'].'.out.txt';
     } elseif ($verify === 0) {
       $json->result = 1;
@@ -111,7 +115,8 @@ function parse_pdf() {
 function run_java_parser($pdf_path) {
   // TODO: call java to parse pdf
   $java = 'java -jar PDFPreprocess.jar ' . $pdf_path;
-  $perl = './parscit/bin/citeExtract.pl -m extract_all '. $pdf_path . '.txt ' . $pdf_path . '.txt.out';
+  $perl_cit = './parscit/bin/citeExtract.pl -m extract_citations '. $pdf_path . '.txt ' . $pdf_path . '.txt.citations';
+  $perl_head = './parscit/bin/citeExtract.pl -m extract_header '. $pdf_path . '.txt ' . $pdf_path . '.txt.header';
 
   $l = fopen('log', 'a');
   fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
@@ -120,15 +125,18 @@ function run_java_parser($pdf_path) {
   fwrite($l, "  executing: " . $perl . "\n");
   fwrite($l, "\n");
 
-  $ll = exec($java, $retval);
-  $lines = implode("\n", $retval);
-
-  $ll = exec($perl, $retval);
-  $lines = implode("\n", $retval);
+  exec($java, $retval);
+  exec($perl_cit, $retval);
+  exec($perl_head, $retval);
   
   fclose($l);
 
-  return base64_encode(file_get_contents($pdf_path . '.txt.out'));
+  $data = new stdClass();
+  $data->citations = base64_encode(file_get_contents($pdf_path . '.txt.citations'));
+  $data->header = base64_encode(file_get_contents($pdf_path . '.txt.header'));
+
+  return $data;
+  //return base64_encode(file_get_contents($pdf_path . '.txt.out'));
   
 }
 
