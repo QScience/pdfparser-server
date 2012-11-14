@@ -99,6 +99,7 @@ function parse_pdf() {
       $json->ellapse = microtime(TRUE) - $start;
       $json->xml_citations = $data->citations;
       $json->xml_header = $data->header;
+      $json->authors = $data->names;
       $json->xml_name = $f['name'].'.out.txt';
     } elseif ($verify === 0) {
       $json->result = 1;
@@ -117,23 +118,28 @@ function run_java_parser($pdf_path) {
   $java = 'java -jar PDFPreprocess.jar ' . $pdf_path;
   $perl_cit = './parscit/bin/citeExtract.pl -m extract_citations '. $pdf_path . '.txt ' . $pdf_path . '.txt.citations';
   $perl_head = './parscit/bin/citeExtract.pl -m extract_header '. $pdf_path . '.txt ' . $pdf_path . '.txt.header';
+  $authors = './python/extract_authors.py '. $pdf_path . '.txt.header ' . $pdf_path . '.txt.names';
 
   $l = fopen('log', 'a');
   fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
   fwrite($l, "  " . $_SERVER['REMOTE_ADDR'] . "\n");
   fwrite($l, "  executing: " . $java . "\n");
-  fwrite($l, "  executing: " . $perl . "\n");
+  fwrite($l, "  executing: " . $perl_cit . "\n");
+  fwrite($l, "  executing: " . $perl_head . "\n");
+  fwrite($l, "  executing: " . $authors . "\n");
   fwrite($l, "\n");
 
   exec($java, $retval);
   exec($perl_cit, $retval);
   exec($perl_head, $retval);
+  exec($authors, $retval);
   
   fclose($l);
 
   $data = new stdClass();
   $data->citations = base64_encode(file_get_contents($pdf_path . '.txt.citations'));
   $data->header = base64_encode(file_get_contents($pdf_path . '.txt.header'));
+  $data->names = base64_encode(file_get_contents($pdf_path . '.txt.names'));
 
   return $data;
   //return base64_encode(file_get_contents($pdf_path . '.txt.out'));
