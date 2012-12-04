@@ -36,11 +36,13 @@ function rrmdir($dir) {
 }
 
 function save_public_key() {
+  global $json;
+
   if (!is_dir('public_keys')) {
     mkdir('public_keys');
   }
 
-  $pub_key_path = './public_keys/'. $_SERVER['REMOTE_ADDR'] .'.public_key';
+  $pub_key_path = './public_keys/'. $json->ip .'.public_key';
   
   $success = FALSE;
   foreach ($_FILES as $key => $file) {
@@ -56,7 +58,7 @@ function save_public_key() {
 
   $l = fopen('log', 'a');
   fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
-  fwrite($l, "  " . $_SERVER['REMOTE_ADDR'] . "\n");
+  fwrite($l, "  " . $json->ip . "\n");
   fwrite($l, "  uploading public key: " . $pub_key_path . "\n");
   fwrite($l, "\n");
   fclose($l);
@@ -67,7 +69,7 @@ function parse_pdf() {
 
   header('Content-type: application/json');
 
-  $pub_key_file = './public_keys/'. $_SERVER['REMOTE_ADDR'] .'.public_key';
+  $pub_key_file = './public_keys/'. $json->ip .'.public_key';
   if (!is_file($pub_key_file)) {
     $json->result = 3;
   }
@@ -114,6 +116,8 @@ function parse_pdf() {
 }
 
 function run_java_parser($pdf_path) {
+  global $json;
+
   // TODO: call java to parse pdf
   $java = 'java -jar PDFPreprocess.jar ' . $pdf_path;
   $perl_cit = './parscit/bin/citeExtract.pl -m extract_citations '. $pdf_path . '.txt ' . $pdf_path . '.txt.citations';
@@ -122,7 +126,7 @@ function run_java_parser($pdf_path) {
 
   $l = fopen('log', 'a');
   fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
-  fwrite($l, "  " . $_SERVER['REMOTE_ADDR'] . "\n");
+  fwrite($l, "  " . $json->ip . "\n");
   fwrite($l, "  executing: " . $java . "\n");
   fwrite($l, "  executing: " . $perl_cit . "\n");
   fwrite($l, "  executing: " . $perl_head . "\n");
