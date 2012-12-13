@@ -84,6 +84,7 @@ function parse_pdf() {
     $files = $_FILES;
     $f = null;
     foreach ($files as $key => $file) {
+      $file['name'] = str_replace(" ", "_", $file['name']);
       move_uploaded_file($file['tmp_name'], $pdf_folder . $file['name']);
       $f = $file;
       break;
@@ -91,18 +92,18 @@ function parse_pdf() {
   
     $file_content = file_get_contents($pdf_folder . $f['name']);
     $pub_content = file_get_contents($pub_key_file);
-
+    $file_name = $f['name'];
     $verify = @openssl_verify($file_content, base64_decode($json->signature), $pub_content);
     unset($json->signature);
     if ($verify === 1) {
       $json->result = 0;
       $start = microtime(TRUE);
-      $data = run_java_parser($pdf_folder . $f['name']);
+      $data = run_java_parser($pdf_folder . $file_name);
       $json->ellapse = microtime(TRUE) - $start;
       $json->xml_citations = $data->citations;
       $json->xml_header = $data->header;
       $json->authors = $data->names;
-      $json->xml_name = $f['name'].'.out.txt';
+      $json->xml_name = $file_name.'.out.txt';
     } elseif ($verify === 0) {
       $json->result = 1;
     } elseif ($verify === -1) {
@@ -118,11 +119,12 @@ function parse_pdf() {
 function run_java_parser($pdf_path) {
   global $json;
 
+  $path = $pdf_path;
   // TODO: call java to parse pdf
-  $java = 'java -jar PDFPreprocess.jar ' . $pdf_path;
-  $perl_cit = './parscit/bin/citeExtract.pl -m extract_citations '. $pdf_path . '.txt ' . $pdf_path . '.txt.citations';
-  $perl_head = './parscit/bin/citeExtract.pl -m extract_header '. $pdf_path . '.txt ' . $pdf_path . '.txt.header';
-  $authors = './python/extract_authors.py '. $pdf_path . '.txt.header ' . $pdf_path . '.txt.names';
+  $java = 'java -jar PDFPreprocess.jar ' . $path;
+  $perl_cit = './parscit/bin/citeExtract.pl -m extract_citations '. $path . '.txt ' . $path . '.txt.citations';
+  $perl_head = './parscit/bin/citeExtract.pl -m extract_header '. $path . '.txt ' . $path . '.txt.header';
+  $authors = './python/extract_authors.py '. $path . '.txt.header ' . $path . '.txt.names';
 
   $l = fopen('log', 'a');
   fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
@@ -133,10 +135,21 @@ function run_java_parser($pdf_path) {
   fwrite($l, "  executing: " . $authors . "\n");
   fwrite($l, "\n");
 
+  $start = microtime(TRUE);
   exec($java, $retval);
+  $json->javarun = microtime(TRUE) - $start;
+
+  $start = microtime(TRUE);
   exec($perl_cit, $retval);
+  $json->perl_cit = microtime(TRUE) - $start;
+
+  $start = microtime(TRUE);
   exec($perl_head, $retval);
+  $json->perl_head = microtime(TRUE) - $start;
+
+  $start = microtime(TRUE);
   exec($authors, $retval);
+  $json->python = microtime(TRUE) - $start;
   
   fclose($l);
 
