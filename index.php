@@ -9,17 +9,24 @@ if (isset($_GET['rmdirs'])) {
   exit;
 }
 
+
+$l = fopen('log', 'a');
+fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
+
 $json = json_decode($_POST['json']);
 
 if (isset($json->func) && $json->func == 'set_public_key') {
   save_public_key();
 }
-elseif (!empty($_FILES)) {
+elseif (isset($json->func) && $json->func == 'send_pdf_to_parse') {
   parse_pdf();
 }
 else {
   echo 'Empty request.';
 }
+
+fwrite($l, "\n");
+fclose($l);
 
 function rrmdir($dir) {
   if (is_dir($dir)) {
@@ -36,36 +43,29 @@ function rrmdir($dir) {
 }
 
 function save_public_key() {
-  global $json;
+  global $json, $l;
 
   if (!is_dir('public_keys')) {
     mkdir('public_keys');
   }
 
   $pub_key_path = './public_keys/'. $json->ip .'.public_key';
+  file_put_contents($pub_key_path, base64_decode($json->public_key));
+  $success = TRUE;
   
-  $success = FALSE;
-  foreach ($_FILES as $key => $file) {
-    $success = @move_uploaded_file($file['tmp_name'], $pub_key_path);
-    break;
-  }
-
   $ret = new stdClass();
   $ret->result = $success === TRUE ? 0 : 1;
   header('Content-type: application/json');
   echo json_encode($ret);
 
 
-  $l = fopen('log', 'a');
-  fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
   fwrite($l, "  " . $json->ip . "\n");
   fwrite($l, "  uploading public key: " . $pub_key_path . "\n");
   fwrite($l, "\n");
-  fclose($l);
 }
 
 function parse_pdf() {
-  global $json;
+  global $json, $l;
 
   header('Content-type: application/json');
 
@@ -81,20 +81,19 @@ function parse_pdf() {
       mkdir($pdf_folder);
     }
 
-    $files = $_FILES;
-    $f = null;
-    foreach ($files as $key => $file) {
-      $file['name'] = str_replace(" ", "_", $file['name']);
-      move_uploaded_file($file['tmp_name'], $pdf_folder . $file['name']);
-      $f = $file;
-      break;
-    }
-  
-    $file_content = file_get_contents($pdf_folder . $f['name']);
+    $f = $json->filename;
+    unset($json->filename);
+    $file_content = base64_decode($json->file);
+    unset($json->file);
+    file_put_contents($pdf_folder . $f, $file_content);
+
     $pub_content = file_get_contents($pub_key_file);
-    $file_name = $f['name'];
-    $verify = @openssl_verify($file_content, base64_decode($json->signature), $pub_content);
+    $file_name = $f;
+    $signature = $json->signature;
+    $verify = @openssl_verify($file_content, base64_decode($signature), $pub_content);
     unset($json->signature);
+    fwrite($l, "  signature: ". base64_decode($signature) ."\n");
+    fwrite($l, "  dbg_sign: ". $crypted_hash ."\n");
     if ($verify === 1) {
       $json->result = 0;
       $start = microtime(TRUE);
@@ -104,6 +103,7 @@ function parse_pdf() {
       $json->xml_header = $data->header;
       $json->authors = $data->names;
       $json->xml_name = $file_name.'.out.txt';
+      fwrite($l, "  signature: ". base64_decode($signature) ."\n");
     } elseif ($verify === 0) {
       $json->result = 1;
     } elseif ($verify === -1) {
@@ -117,7 +117,7 @@ function parse_pdf() {
 }
 
 function run_java_parser($pdf_path) {
-  global $json;
+  global $json, $l;
 
   $path = $pdf_path;
   // TODO: call java to parse pdf
@@ -126,14 +126,11 @@ function run_java_parser($pdf_path) {
   $perl_head = './parscit/bin/citeExtract.pl -m extract_header '. $path . '.txt ' . $path . '.txt.header';
   $authors = './python/extract_authors.py '. $path . '.txt.header ' . $path . '.txt.names';
 
-  $l = fopen('log', 'a');
-  fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
   fwrite($l, "  " . $json->ip . "\n");
   fwrite($l, "  executing: " . $java . "\n");
   fwrite($l, "  executing: " . $perl_cit . "\n");
   fwrite($l, "  executing: " . $perl_head . "\n");
   fwrite($l, "  executing: " . $authors . "\n");
-  fwrite($l, "\n");
 
   $start = microtime(TRUE);
   exec($java, $retval);
@@ -151,48 +148,13 @@ function run_java_parser($pdf_path) {
   exec($authors, $retval);
   $json->python = microtime(TRUE) - $start;
   
-  fclose($l);
-
   $data = new stdClass();
   $data->citations = base64_encode(file_get_contents($pdf_path . '.txt.citations'));
   $data->header = base64_encode(file_get_contents($pdf_path . '.txt.header'));
   $data->names = base64_encode(file_get_contents($pdf_path . '.txt.names'));
 
   return $data;
-  //return base64_encode(file_get_contents($pdf_path . '.txt.out'));
   
 }
-
-//function do_post_answer($json, $filename, $filepath) {
-//  $f = fopen('log', 'w');
-//  $data = "";
-//  $boundary = "----------------" . substr(md5(rand(0, 32000)), 0, 10);
-//  // POSTing JSON data
-//  $data .= '--' . $boundary . "\n";
-//  $data .= 'Content-Disposition: form-data; name="json"' . "\n";
-//  $data .= 'Content-type: application/json' . "\n\n";
-//
-//  $data .= $json . "\n";
-//
-//  // POSTing the pdf data
-//  $data .= "--$boundary\n";
-//  $file_contents = file_get_contents($filepath);
-//  $data .= "Content-Disposition: form-data; name=\"{$filename}\"; filename=\"{$filename}\"\n";
-//  $data .= "Content-Type: text/plain\n\n";
-//
-//  $data .= "imitating base 64 coded data" . "\n";
-// 
-//  $data .= "--$boundary--\n";
-//  // compiling the post request
-//
-//  $wrapper = "Content-Type: multipart/form-data; boundary=" . $boundary . "\n";
-//  $wrapper .= $data;
-//
-//  fwrite($f, $wrapper);
-//  fclose($f);
-//
-//  echo $wrapper;
-//
-//}
 
 ?>
