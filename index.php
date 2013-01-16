@@ -92,8 +92,8 @@ function parse_pdf() {
     $signature = $json->signature;
     $verify = @openssl_verify($file_content, base64_decode($signature), $pub_content);
     unset($json->signature);
-    fwrite($l, "  signature: ". base64_decode($signature) ."\n");
-    fwrite($l, "  dbg_sign: ". $crypted_hash ."\n");
+    //fwrite($l, "  signature: ". base64_decode($signature) ."\n");
+    //fwrite($l, "  dbg_sign: ". $crypted_hash ."\n");
     if ($verify === 1) {
       $json->result = 0;
       $start = microtime(TRUE);
@@ -103,7 +103,7 @@ function parse_pdf() {
       $json->xml_header = $data->header;
       $json->authors = $data->names;
       $json->xml_name = $file_name.'.out.txt';
-      fwrite($l, "  signature: ". base64_decode($signature) ."\n");
+      //fwrite($l, "  signature: ". base64_decode($signature) ."\n");
     } elseif ($verify === 0) {
       $json->result = 1;
     } elseif ($verify === -1) {
@@ -151,7 +151,11 @@ function run_java_parser($pdf_path) {
   $data = new stdClass();
   $data->citations = base64_encode(file_get_contents($pdf_path . '.txt.citations'));
   $data->header = base64_encode(file_get_contents($pdf_path . '.txt.header'));
-  $data->names = base64_encode(file_get_contents($pdf_path . '.txt.names'));
+  if(is_file($pdf_path . '.txt.names')) {
+    $data->names = base64_encode(file_get_contents($pdf_path . '.txt.names'));
+  } else {
+    $data->names = '';
+  }
 
   return $data;
   
