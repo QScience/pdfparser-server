@@ -126,12 +126,6 @@ function run_java_parser($pdf_path) {
   $path = $pdf_path;
   // TODO: call java to parse pdf
   $java = 'java -jar PDFPreprocess.jar ' . $path;
-  if (!is_file($path . '.txt')) {
-    // cannot parse pdf
-    $data = new stdClass();
-    $data->result = 5;
-    return $data;
-  }
   $perl_cit = './parscit/bin/citeExtract.pl -m extract_citations '. $path . '.txt ' . $path . '.txt.citations';
   $perl_head = './parscit/bin/citeExtract.pl -m extract_header '. $path . '.txt ' . $path . '.txt.header';
   $authors = './python/extract_authors.py '. $path . '.txt.header ' . $path . '.txt.names';
@@ -146,6 +140,12 @@ function run_java_parser($pdf_path) {
   exec($java, $retval);
   $json->javarun = microtime(TRUE) - $start;
 
+  if (!is_file($path . '.txt')) {
+    // cannot parse pdf
+    $data = new stdClass();
+    $data->result = 5;
+    return $data;
+  }
   $start = microtime(TRUE);
   exec($perl_cit, $retval);
   $json->perl_cit = microtime(TRUE) - $start;
