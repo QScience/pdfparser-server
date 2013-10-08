@@ -1,0 +1,3 @@
+# PDFParser server
+
+This file bridges incoming request to the parser by creating a REST-ful web service.
