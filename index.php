@@ -1,13 +1,5 @@
 <?php
-ini_set('display_errors', '1');
-
-if (isset($_GET['rmdirs'])) {
-  echo 'rmdir';
-  rrmdir('./pdfs');
-  rrmdir('./parsed_docs');
-  rrmdir('./public_keys');
-  exit;
-}
+//ini_set('display_errors', '1');
 
 
 $l = fopen('log', 'a');
@@ -45,15 +37,30 @@ function rrmdir($dir) {
 function save_public_key() {
   global $json, $l;
 
+  $ret = new stdClass();
+
   if (!is_dir('public_keys')) {
     mkdir('public_keys');
   }
+
+  if (!preg_match('/^[0-9\.]*$/', $json->ip)) {
+    $ret->result = 2;
+    $ret->msg = $json->ip;
+    echo json_encode($ret);
+    return;
+  }
+
+  if (preg_match('/^[A-Za-z0-9\+\s\-\/]*$/', base64_decode($json->public_key)) !== 1) {
+    $ret->result = 3;
+    echo json_encode($ret);
+    return;
+  }
+
 
   $pub_key_path = './public_keys/'. $json->ip .'.public_key';
   file_put_contents($pub_key_path, base64_decode($json->public_key));
   $success = TRUE;
   
-  $ret = new stdClass();
   $ret->result = $success === TRUE ? 0 : 1;
   header('Content-type: application/json');
   echo json_encode($ret);
