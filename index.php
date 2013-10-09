@@ -1,6 +1,15 @@
 <?php
-//ini_set('display_errors', '1');
 
+// For debugging and testing purposes only.
+// ini_set('display_errors', '1');
+//
+// if (isset($_GET['rmdirs'])) {
+//   echo 'rmdir';
+//   rrmdir('./pdfs');
+//   rrmdir('./parsed_docs');
+//   rrmdir('./public_keys');
+//   exit;
+// }
 
 $l = fopen('log', 'a');
 fwrite($l, "#" . date('Y-m-d H:i:s') . "\n");
